@@ -3,10 +3,12 @@ var express = require('express');
 var expressBull = require('./');
 
 var app = express();
+var server = require('http').Server(app);
 
 app.use('/jobs', expressBull({
   router: express.Router(),
-  redisClient: redis.createClient()
+  redisClient: redis.createClient(),
+  server: server
 }))
 
-require('http').Server(app).listen(1337)
+server.listen(1337)

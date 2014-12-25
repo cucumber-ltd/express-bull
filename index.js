@@ -1,4 +1,5 @@
-var redisModel = require('./redis_model')
+var Promise = require('bluebird')
+  , redisModel = require('./redis_model')
   , getJobs = require('./get_jobs')(redisModel)
 
 module.exports = function (config) {
@@ -39,5 +40,31 @@ module.exports = function (config) {
     }).error(next).catch(next)
   });
 
+  if(config.server) {
+    var SSE = require('sse');
+    var sse = new SSE(config.server);
+
+    sse.on('connection', function(client) {
+      var writer = setInterval(function () {
+        states.forEach(function (state) {
+          getJobs(state).then(function (jobs) {
+            if (writer) { // reset to null on close to avoid writing after close
+              client.send(state, JSON.stringify(jobs));
+            }
+          }).error(close).catch(close);
+        });
+      }, 1000);
+
+      function close() {
+        client.close();
+      }
+
+      client.on('close', function () {
+        clearTimeout(writer);
+        writer = null;
+      });
+    });
+  }
+
   return router;
-}
+};
